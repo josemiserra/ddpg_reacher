@@ -2,6 +2,7 @@ import numpy as np
 import random
 from collections import namedtuple, deque
 import torch
+
 from segment_tree import SumSegmentTree,MinSegmentTree
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

@@ -1,7 +1,6 @@
 import numpy as np
 import random
 import copy
-from collections import namedtuple, deque
 
 from model import Actor, Critic
 
@@ -9,26 +8,30 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 
-from per_buffer import PriorityReplayBuffer
+# from per_buffer import PriorityReplayBuffer
+from replay_buffer import ReplayBuffer
 
-BUFFER_SIZE = int(1e5)  # replay buffer size
-BATCH_SIZE = 64        # minibatch size
-GAMMA = 0.99            # discount factor
-TAU = 1e-3              # for soft update of target parameters
-LR_ACTOR = 1e-3         # learning rate of the actor
-LR_CRITIC = 5e-4 #3e-4        # learning rate of the critic
-WEIGHT_DECAY = 0.0001   # L2 weight decay
-UPDATE_EVERY = 10
+BUFFER_SIZE = int(1e6)  # replay buffer size
+BATCH_SIZE = 256  # minibatch size
+GAMMA = 0.99  # discount factor
+TAU = 1e-3  # for soft update of target parameters
+LR_ACTOR = 1e-3  # learning rate of the actor
+LR_CRITIC = 1e-4  # 3e-4        # learning rate of the critic
+UPDATE_EVERY = 20
+LEARN_N = 1
+N_STEP = 5
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 eps = np.finfo(np.float32).eps
 
+
+shared_memory = ReplayBuffer(4, BUFFER_SIZE, BATCH_SIZE, 10)
+
 class Agent():
     """Interacts with and learns from the environment."""
-    
-    def __init__(self, state_size, action_size, seed, beta_start = 0.4, beta_episodes = 100):
+    def __init__(self, state_size, action_size, seed):
         """Initialize an Agent object.
-        
+
         Params
         ======
             state_size (int): dimension of each state
@@ -49,24 +52,18 @@ class Agent():
         # Critic Network (w/ Target Network)
         self.critic_local = Critic(state_size, action_size, seed).to(device)
         self.critic_target = Critic(state_size, action_size, seed).to(device)
-        self.critic_optimizer = optim.Adam(self.critic_local.parameters(), lr=LR_CRITIC, weight_decay=WEIGHT_DECAY)
+        self.critic_optimizer = optim.Adam(self.critic_local.parameters(), lr=LR_CRITIC)
 
         self.complete_update(self.critic_local, self.critic_target)
         # Noise process
         self.noise = OUNoise(action_size, seed)
 
         # Replay memory
-        # self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, seed)
-        self.memory = PriorityReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, seed)
-        self.frame_step = 0
-
-        self.beta_start = beta_start
-        self.beta_episodes = beta_episodes
+        self.memory = shared_memory
         self.t_step = 0
-    
+
     def step(self, state, action, reward, next_state, done):
         """Save experience in replay memory, and use random sample from buffer to learn."""
-        # Save experience / reward
         self.memory.add(state, action, reward, next_state, done)
 
         # update time steps
@@ -74,22 +71,19 @@ class Agent():
         if self.t_step == 0:
             # Learn, if enough samples are available in memory
             if len(self.memory) > BATCH_SIZE:
-               beta = min(1.0, self.beta_start + self.frame_step* (1.0 - self.beta_start) / self.beta_episodes)
-               experiences = self.memory.sample(beta)
-               self.learn(experiences, GAMMA)
+                for _ in range(LEARN_N):
+                    experiences = self.memory.sample()
+                    self.learn(experiences, GAMMA)
 
-    def act(self, state, eps = 0.0001, add_noise=True):
+    def act(self, state, eps=1.0, add_noise=True):
         """Returns actions for given state as per current policy."""
         state = torch.from_numpy(state).float().to(device)
-        # Epsilon-greedy action selection
-        if random.random() > eps and add_noise:
-            add_noise = True
         self.actor_local.eval()
         with torch.no_grad():
             action = self.actor_local(state.unsqueeze(0)).cpu().data.numpy()
         self.actor_local.train()
         if add_noise:
-            action += eps*self.noise.sample()
+            action += eps * self.noise.sample()
         return np.clip(action, -1, 1)
 
     def reset(self):
@@ -104,10 +98,10 @@ class Agent():
 
         Params
         ======
-            experiences (Tuple[torch.Tensor]): tuple of (s, a, r, s', done) tuples 
+            experiences (Tuple[torch.Tensor]): tuple of (s, a, r, s', done) tuples
             gamma (float): discount factor
         """
-        states, actions, rewards, next_states, dones, weights, indices = experiences
+        states, actions, rewards, next_states, dones = experiences
         # ---------------------------- update critic ---------------------------- #
         # Get predicted next-state actions and Q values from target models
         actions_next = self.actor_target(next_states)
@@ -117,12 +111,9 @@ class Agent():
         # Compute critic loss
         Q_expected = self.critic_local(states, actions)
 
-        loss = (((Q_targets - Q_expected).pow(2)).squeeze())*weights
-        deltas = loss + eps
-        critic_loss = loss.mean()
-        
-        # Minimize the loss
+        critic_loss = F.mse_loss(Q_expected, Q_targets)
 
+        # Minimize the loss
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         torch.nn.utils.clip_grad_norm_(self.critic_local.parameters(), 1.0)
@@ -137,13 +128,9 @@ class Agent():
         actor_loss.backward()
 
         self.actor_optimizer.step()
-
         # ----------------------- update target networks ----------------------- #
         self.soft_update(self.critic_local, self.critic_target, TAU)
-        self.soft_update(self.actor_local, self.actor_target, TAU)  
-
-        self.memory.update_priorities(indices, deltas)
-
+        self.soft_update(self.actor_local, self.actor_target, TAU)
 
     def soft_update(self, local_model, target_model, tau):
         """Soft update model parameters.
@@ -153,21 +140,21 @@ class Agent():
         ======
             local_model: PyTorch model (weights will be copied from)
             target_model: PyTorch model (weights will be copied to)
-            tau (float): interpolation parameter 
+            tau (float): interpolation parameter
         """
         for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
-            target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
+            target_param.data.copy_(tau * local_param.data + (1.0 - tau) * target_param.data)
 
-    def complete_update(self,local_model, target_model):
+    def complete_update(self, local_model, target_model):
         """Copy source network weights to target"""
-        for target_param, local_param in zip(target_model.parameters(),local_model.parameters()):
+        for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
             target_param.data.copy_(local_param.data)
 
 
 class OUNoise:
     """Ornstein-Uhlenbeck process."""
 
-    def __init__(self, size, seed, mu=0., theta=0.15, sigma=0.01): # default was 0.2
+    def __init__(self, size, seed, mu=0., theta=0.15, sigma=0.05):  # default was 0.2
         """Initialize parameters and noise process."""
         self.mu = mu * np.ones(size)
         self.theta = theta
@@ -182,8 +169,6 @@ class OUNoise:
     def sample(self):
         """Update internal state and return it as a noise sample."""
         x = self.state
-        dx = self.theta * (self.mu - x) + self.sigma * np.array([random.random() for i in range(len(x))])
+        dx = self.theta * (self.mu - x) + self.sigma * np.array([random.random() for _ in range(len(x))])
         self.state = x + dx
         return self.state
-
-

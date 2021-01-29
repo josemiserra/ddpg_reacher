@@ -9,8 +9,7 @@
     <li><a href="#about-the-project">About The Project</a></li>
     <li><a href="#one-agent-ddpg">One Agent DDPG</a></li>
     <li><a href="#parameter-exploration">Parameter exploration in DDPG</a></li>
-    <li><a href="#d4pg">D4PG</a></li>
-    <li><a href="#a2c-multi-agent">A2C Multi agent</a></li>
+    <li><a href="#d4pg-multi-agent">D4PG Multi agent</a></li>
     <li><a href="#conclusion-and-future-improvements">Conclusion and future improvements</a></li>
     <li><a href="#acknowledgements">Acknowledgements</a></li>
     <li><a href="#contact">Contact</a></li>
@@ -31,29 +30,22 @@ There are two scenarios, one being single robotic agent, and the other being mul
 
 In DDPG(1), by sampling on replay memory we are breaking the correlation between transitions. In the implementation provided by Udacity, Ornstein-Uhlenbeck (OU) noise (random walking noise, which grows correlated with the mean moving in a close random direction, instead of being purely gaussian) is added in action values for action exploration. The action is then clipped to be in between (-1,1).
 
-It was not possible to make it work simply by adjusting parameters from other environments like the Bipedal. In this case we need to recopilate a big amount of cases before the network starts to learn. The learning happens at every 40 timesteps, and then there is 10 times a weight-update, each time with a batch of 128 transitions picked randomly.
+The agent is the same that in ddpg_multi_agent.py, except the number of times the agent learns after each update must be bigger (20 times and update every 40). Even of that, it was not possible, as shown in the plot, to make it stable over 30. Variability due to random seeds, neural network weight initialization and different machines can make a huge difference. There was one training that reached over 30, but when I tried to reproduce it, it was not possible to replicate the same growth.
+
+One of the critical aspects of DDPG is the balance between explotaiton and exploration, which is indirectly affected by the OU noise. Playing with it, specially with the variance, affected a lot the stability of the algorithm. Since the noise is used to explore, an improvement could be to anneal it over the training, to force exploration at the beginning and convergence towards the end. 
 
 
-
-*Hyperparameters
-Learning Rate (Actor/Critic): 1e-4
-Weight Decay: 1e-2
-Batch Size: 64
-Buffer Size: 100000
-Gamma: 0.99
-Tau: 1e-3
-Repeated Learning per time: 10
-Learning Happened per timestep: 20
-Max Gradient Clipped for Critic: 1
-Hidden Layer 1 Size: 128
-Hidden Layer 2 Size: 64
-
-Variability due to random seeds, neural network weight initialization and different machines can make a huge difference.
-
-One of the critical aspects of DDPG is the balance between explotaiton and exploration, which is indirectly affected by one of the critical parameters:the OU noise. Playing with it, specially with the variance, affected a lot the stability of the algorithm. Since the noise is used to explore, an improvement could be to anneal it over the training, to force exploration at the beginning and convergence towards the end. 
-
- In this implementation, the std. dev. of the noise is decayed after each episode, and this was found to be essential to solving the environment.
-
+* Learning rate - Actor: 1e-3
+* Learning rate - Critic: 1e-4
+* Batch Size: 128
+* Buffer Size: 1e6
+* Gamma: 0.99
+* Tau: 1e-3
+* Iterations of learning per update step: 20
+* Update gradient networks step: 40
+* Architecture Actor :  
+* Architecture Critic :
+* N-episodes : 
 
 
 
@@ -63,48 +55,19 @@ One of the critical aspects of DDPG is the balance between explotaiton and explo
  </figure>
 number of time steps per episode
 
-
-
-
+Since the environment was not solved but the agent seemed stable enough, I decide to try with a multi-agent environment.
+## DDPG Multi-agent
+With the same parameters as before
 
 ## D4PG
 
+These extensions, which we will detail in this section,
+- include a distributional critic update,
+- the use of distributed parallel actors, 
+- N-step returns 
+- and prioritization of the experience replay
 
-This work adopts the very successful distributional perspective on reinforcement learning and adapts it to the continuous control setting. We combine this within a distributed framework for off-policy learning in order to develop what we call the Distributed Distributional Deep Deterministic Policy Gradient algorithm, D4PG. We also combine this technique with a number of additional, simple improvements such as the use of N-step returns and prioritized experience replay. Experimentally we examine the contribution of each of these individual components, and show how they interact, as well as their combined contributions. Our results show that across a wide variety of simple control tasks, difficult manipulation tasks, and a set of hard obstacle-based locomotion tasks the D4PG algorithm achieves state of the art performance.
-
-
-
- the D4PG can train on multiple transition trajectory(N-Steps), but I choose to train on one-step for its simplicity. However, according to other reviews, one-step training is the most unstable one and not recoomended, but I still go for it anyway. Two hidden layers are with size 128, 64 each. Buffer memory is with size 100000. Weights are soft-updated. One minor difference from DDPG is the action exploration. In D4PG it uses simple random noise from normal distribution instead of OU noise.
-
-
-Parameters
-* Learning Rate (Actor/Critic): 1e-4
-* Batch Size: 64
-* Buffer Size: 100 000
-* Gamma: 0.99
-* Tau: 1e-3
-* Repeated Learning per time: 10
-* Learning Happened per timestep: 150
-* Max Gradient Clipped for Critic: 1
-* N-step: 1
-* N-Atoms: 51
-* Vmax: 10
-* Vmin: -10
-* Hidden Layer 1 Size: 128
-* Hidden Layer 2 Size: 64
-
-
-
-## A2C
-
-A typical algorithm for multiple agents case is [Synchronous Advantage Actor Critic (A2C)] is used. Here, each agent has its set of unique transition experiences, it is the collective transition experiences update what solves the problem of sequential correlation. Since it is an on-policy learning algorithms, it is likely that is more stable than off-policy ones (where the sampling of a second policy can slow or bias the training).
-
-
-Parameters:
-* Episodes: 1000
-* N-Step: 10
-* Learning rate: 0.00015
-* GAMMA: 0.99
+The core idea is to replace a single Q-value from the critic with a probability distribution.
 
 
 ## Conclusion and future improvements
