@@ -37,6 +37,7 @@ The agent learns 20 times and updates every 40 iterations. Even of that, it was 
 
 One of the critical aspects of DDPG is the balance between explotaiton and exploration, which is indirectly affected by the OU noise. Playing with it, specially with the variance, affected a lot the stability of the algorithm. Since the noise is used to explore, we anneal it over the training, to force exploration at the beginning and convergence towards the end. 
 
+
 * Learning rate - Actor: 1e-3
 * Learning rate - Critic: 5e-4
 * Batch Size: 256
@@ -114,7 +115,7 @@ With the same parameters as before, but with a normal version (none of the previ
 
 <figure>
 <img src="images/multi_agent.png" alt="drawing" style="width:400px;" caption="f"/>
-<figcaption><i>Figure 1. Evolution of rewards (score) for the first 300 episodes. The red line is the moving average over the last 100 episodes</i></figcaption>
+<figcaption><i>Figure 2. Evolution of rewards (score) for the first 300 episodes. The red line is the moving average over the last 100 episodes, average over 20 agents.</i></figcaption>
  </figure>
 
 Due to the time invested on each iteration, the noise update was changed to a simplest version (epsilon decay of 0.99 at each episode)
@@ -123,7 +124,7 @@ Due to the time invested on each iteration, the noise update was changed to a si
 
 In general, this project provides a very valuable lesson: continuous is not nice as discrete.  DDPG proved to be a really hard to use algorithm, very sensitive to random seeds, learning rates (to be specific, the right relationship between actor and critic) and the amount of noise injected for exploration. 
 
-It took me one week to make it work for one agent stabily and for many episodes, even after reading the advice of many people in udacity forums (reduce the OU noise, repeat the learns more times, add a batch normalization to the model). The model, was though, not reaching the over 30. After another week of trials and errors on my own, out of desperation I decided to have look to other colleagues solution in github. I was astonished, how my solution and my code could be so similar to them, and the results shown so different?  So I cloned several repositories and I let them run on my computer. What a surprise when I saw that it did not work either for them. The results were not different of what I saw along my implementation: sometimes getting a nice over 30 result, sometimes not, being random most of the times. The low reproducibility in science is always a concern, so it does not say good things about the DDPG for one single agent. 
+It took me one week to make it work for one agent stabily and for many episodes, even after reading the advice of many people in udacity forums (reduce the OU noise, repeat the learns more times, add a batch normalization to the model). The model, was though, not reaching the over 30. After another week of trials and errors on my own, out of desperation I decided to have look to other colleagues solution in github. I was astonished, how my solution and my code could be so similar to them, and the results shown so different?  So I cloned several of those repositories and I let them run on my computer. What a surprise when I saw that it did not work either for them. The results were not different of what I saw along my implementation: sometimes getting a nice over 30 result, sometimes not, being random most of the times. I observed a dependency of the initial random seed for noise and initialization, probably related to the computer used. Also sometimes a random path taken during the training at one moment was diverging the learning too much and lowering the scores without recovery. High variance and low reproducibility in science is always a concern, so it does not say good things about the DDPG for one single agent. 
 
 The history was very different with the multiagent. On the first day, it was already running and working. It only took to modify slightly the code provided by Udacity (ddpg-bipedal), a quick adaptation, and the goal was reached. 
 
@@ -135,19 +136,14 @@ List of improvements:
 * Would be also interesting to use PPO(4)
 
 
-
-
-## Acknowlegments
-
-
 ## Contact
 
 Jose Miguel Serra Lleti - serrajosemi@gmail.com
 
-Project Link:
+Project Link: https://github.com/josemiserra/ddpg_reacher
 
 ## References
 * (1) [DDPG](https://arxiv.org/pdf/1509.02971.pdf)
-* (2) []()
+* (2) [D4PG](https://arxiv.org/pdf/1804.08617.pdf)
 * (3) [Noisy networks](https://arxiv.org/pdf/1706.10295.pdf)
 * (4) [PPO](https://openai.com/blog/openai-baselines-ppo/). 
