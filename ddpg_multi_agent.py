@@ -16,10 +16,9 @@ BATCH_SIZE = 256  # minibatch size
 GAMMA = 0.99  # discount factor
 TAU = 1e-3  # for soft update of target parameters
 LR_ACTOR = 1e-3  # learning rate of the actor
-LR_CRITIC = 1e-4  # 3e-4        # learning rate of the critic
+LR_CRITIC = 5e-4  # 3e-4        # learning rate of the critic
 UPDATE_EVERY = 20
 LEARN_N = 1
-N_STEP = 5
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 eps = np.finfo(np.float32).eps
@@ -60,6 +59,7 @@ class Agent():
 
         # Replay memory
         self.memory = shared_memory
+
         self.t_step = 0
 
     def step(self, state, action, reward, next_state, done):
@@ -154,7 +154,7 @@ class Agent():
 class OUNoise:
     """Ornstein-Uhlenbeck process."""
 
-    def __init__(self, size, seed, mu=0., theta=0.15, sigma=0.05):  # default was 0.2
+    def __init__(self, size, seed, mu=0., theta=0.15, sigma=0.1):  # default was 0.2
         """Initialize parameters and noise process."""
         self.mu = mu * np.ones(size)
         self.theta = theta

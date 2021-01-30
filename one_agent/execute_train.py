@@ -46,7 +46,6 @@ def trainFunction(n_episodes=2000):
             patience = patience-1 if patience > 0 else 0
         old_v = new_v
 
-        # if np.mean(scores_window)>=13.0:
 
     print('\nEnvironment finished in {:d} episodes!\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)))
     torch.save(agent.local_actor.state_dict(), 'checkpoint_local_actor.pth')           # save local actor
