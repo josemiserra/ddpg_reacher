@@ -67,7 +67,7 @@ class Agent():
         self.memory.add(state, action, reward, next_state, done)
 
         # update time steps
-        self.t_s = (self.t_step + 1) % UPDATE_EVERY
+        self.t_step = (self.t_step + 1) % UPDATE_EVERY
         if self.t_step == 0:
             # Learn, if enough samples are available in memory
             if len(self.memory) > BATCH_SIZE:

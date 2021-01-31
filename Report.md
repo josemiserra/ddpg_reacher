@@ -9,7 +9,7 @@
     <li><a href="#about-the-project">About The Project</a></li>
     <li><a href="#ddpg">DDPG</a></li>
     <li><a href="#additional-parameters-in-ddpg">Additional parameters in DDPG</a></li>
-    <li><a href="#ddpg-multi-agent">D4PG Multi agent</a></li>
+    <li><a href="#ddpg-multi-agent">DDPG Multi agent</a></li>
     <li><a href="#conclusion-and-future-improvements">Conclusion and future improvements</a></li>
     <li><a href="#acknowledgements">Acknowledgements</a></li>
     <li><a href="#contact">Contact</a></li>
@@ -116,8 +116,8 @@ With the same parameters as before, but with a normal version (none of the previ
 
 
 <figure>
-<img src="images/multi_agent.png" alt="drawing" style="width:400px;" caption="f"/>
-<figcaption><i>Figure 2. Evolution of rewards (score) for the first 300 episodes. The red line is the moving average over the last 100 episodes, average over 20 agents.</i></figcaption>
+<img src="images/magent.png" alt="drawing" style="width:400px;" caption="f"/>
+<figcaption><i>Figure 2. Evolution of rewards (score) for the first 200 episodes. The blue line is the average over the last 100 episodes over 20 agents.</i></figcaption>
  </figure>
 
 Due to the time invested on each iteration, the noise update was changed to a simplest version (epsilon decay of 0.99 at each episode)
