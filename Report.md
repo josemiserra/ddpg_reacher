@@ -29,9 +29,11 @@ There are two scenarios, one being single robotic agent, and the other being mul
 ## DDPG
 
 
-In this environment it was decided to use the popular deep deterministic policy gradients (1), which is an actor-critic method. It is called deterministic, because differently from others methods like A2C, which select an action given a probability distribution, it directly provides the action given a the state. The actor decides the action, so it takes the current state as an input and return x continuous values, one for every action. Since given a state it will return always the same action, is deterministic (that is why adding noise to the action helps with exploration). The critic, estimates que Q-value (the discounted reward estimation of the action given the state). The critic takes both, action and state, and provides a number Q(s,a). Since the critic uses the action given by the actor, actor and critic are coupled. So, like in A2C, the critic is updated, but now the actor is updated to maximize the critic's function values.  
+In this environment it was decided to use the popular deep deterministic policy gradients (1), which is an actor-critic method. It is called deterministic, because differently from others methods like A2C, which select an action given a probability distribution, it directly provides the action given a state. The actor (which uses a neural network as function approximator) decides the action, so it takes the current state as an input and return x continuous values, one for every action. Since given a state it will return always the same action, is deterministic (that is why adding noise to the action helps with exploration). 
 
-Since it is an off-policy method, now we can sample on a replay memory like in DQN, which also helps to break the correlation between transitions. Regarding the noise used in the action, Ornstein-Uhlenbeck (OU) noise (random walking noise, which grows correlated with the mean moving in a close random direction, instead of being purely gaussian) is added in action values for action exploration. 
+The critic is another network which estimates que Q-value (the discounted reward estimation of the action given the state). The critic takes both, action and state, and provides a number Q(s,a). Since the critic uses the action given by the actor, actor and critic are coupled. So, like in A2C, the critic is updated, but now the actor is updated to maximize the critic's function values.   
+
+Since it is an off-policy method, now we can sample on a replay buffer memory like in DQN, which also helps to break the correlation between transitions. Regarding the noise used in the action, Ornstein-Uhlenbeck (OU) noise (random walking noise, which grows correlated with the mean moving in a close random direction, instead of being purely gaussian) is added in action values for action exploration. 
 
 The agent learns 20 times and updates every 40 iterations. Even of that, it was not possible, as shown in the plot, to make it stable over 30. Variability due to random seeds, neural network weight initialization and different machines can make a huge difference. There was one training that reached over 30, but when I tried to reproduce it, it was not possible to replicate the same growth.
 
@@ -70,14 +72,14 @@ Since the environment was not solved but the agent seemed stable enough, I decid
 
 * **Noise update**
   The noise update was one of the critical aspects. Annealing the noise was crucial, the question was, how to anneal it? Because if the agent gets stuck at one point, more noise would be better. So when the annealing is finished (dtt == 0.001, a minimum), if we find that average score is not increasing, then, we restart the annealing for a random number of future episodes. It was also considered a patience of 5 before doing the update.
-  ```
+  ```python
      dtt = max(0.001, 1.-(current_episode/ self.episodes_to_end))
      if dtt == 0.001:
                 self.episodes_to_end = (current_episode + self.episodes_to_end) + self.episodes_to_end * np.random.random()
                 self.dt = max(0.001, 1. - (current_episode / self.episodes_to_end)) ```
 * **Increase TAU in soft updates every N episodes**
   The idea is to increase the amount of updating of the targets networks with a bigger TAU in the soft update, every 10 episodes. 20% of the weights was used, the reason being, that a full update of the network, gives less range of guidance for the target networks.
-  ```
+  ```python
           if episode % 10 == 0:
             self.soft_update(self.critic_local, self.critic_target, 2e-1)
             self.soft_update(self.actor_local, self.actor_target, 2e-1)
@@ -87,7 +89,7 @@ Since the environment was not solved but the agent seemed stable enough, I decid
   ```
 * **N-steps.**
   Another improvement was to use the N-step. This was a simple implementation, which was not taken in account for the update of the gradients, just calculated the reward after certain number of steps and stored in the buffer, instead of simply add it to the buffer.
-  ```   
+  ```python   
         self.states_queue.appendleft([state, action])
         self.rewards_queue.appendleft(reward * GAMMA ** (N_STEP))
         for i in range(len(self.rewards_queue)):
